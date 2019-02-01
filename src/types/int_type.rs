@@ -1,13 +1,17 @@
-use llvm_sys::core::{LLVMInt1Type, LLVMInt8Type, LLVMInt16Type, LLVMInt32Type, LLVMInt64Type, LLVMConstInt, LLVMConstAllOnes, LLVMIntType, LLVMGetIntTypeWidth, LLVMConstIntOfStringAndSize, LLVMConstIntOfArbitraryPrecision, LLVMConstArray};
+use llvm_sys::core::{
+    LLVMConstAllOnes, LLVMConstArray, LLVMConstInt, LLVMConstIntOfArbitraryPrecision,
+    LLVMConstIntOfStringAndSize, LLVMGetIntTypeWidth, LLVMInt16Type, LLVMInt1Type, LLVMInt32Type,
+    LLVMInt64Type, LLVMInt8Type, LLVMIntType,
+};
 use llvm_sys::execution_engine::LLVMCreateGenericValueOfInt;
 use llvm_sys::prelude::{LLVMTypeRef, LLVMValueRef};
 
-use AddressSpace;
 use context::ContextRef;
 use support::LLVMString;
-use types::traits::AsTypeRef;
-use types::{Type, ArrayType, BasicTypeEnum, VectorType, PointerType, FunctionType};
-use values::{AsValueRef, ArrayValue, GenericValue, IntValue};
+use types::traits::{AsTypeRef, ConvertType};
+use types::{ArrayType, BasicTypeEnum, FunctionType, PointerType, Type, VectorType};
+use values::{ArrayValue, AsValueRef, GenericValue, IntValue};
+use AddressSpace;
 
 /// An `IntType` is the type of an integer constant or variable.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -39,9 +43,7 @@ impl IntType {
     /// assert_eq!(bool_type.get_context(), Context::get_global());
     /// ```
     pub fn bool_type() -> Self {
-        let type_ = unsafe {
-            LLVMInt1Type()
-        };
+        let type_ = unsafe { LLVMInt1Type() };
 
         IntType::new(type_)
     }
@@ -61,9 +63,7 @@ impl IntType {
     /// assert_eq!(i8_type.get_context(), Context::get_global());
     /// ```
     pub fn i8_type() -> Self {
-        let type_ = unsafe {
-            LLVMInt8Type()
-        };
+        let type_ = unsafe { LLVMInt8Type() };
 
         IntType::new(type_)
     }
@@ -83,9 +83,7 @@ impl IntType {
     /// assert_eq!(i16_type.get_context(), Context::get_global());
     /// ```
     pub fn i16_type() -> Self {
-        let type_ = unsafe {
-            LLVMInt16Type()
-        };
+        let type_ = unsafe { LLVMInt16Type() };
 
         IntType::new(type_)
     }
@@ -105,9 +103,7 @@ impl IntType {
     /// assert_eq!(i32_type.get_context(), Context::get_global());
     /// ```
     pub fn i32_type() -> Self {
-        let type_ = unsafe {
-            LLVMInt32Type()
-        };
+        let type_ = unsafe { LLVMInt32Type() };
 
         IntType::new(type_)
     }
@@ -127,9 +123,7 @@ impl IntType {
     /// assert_eq!(i64_type.get_context(), Context::get_global());
     /// ```
     pub fn i64_type() -> Self {
-        let type_ = unsafe {
-            LLVMInt64Type()
-        };
+        let type_ = unsafe { LLVMInt64Type() };
 
         IntType::new(type_)
     }
@@ -170,9 +164,7 @@ impl IntType {
     /// assert_eq!(i42_type.get_context(), Context::get_global());
     /// ```
     pub fn custom_width_int_type(bits: u32) -> Self {
-        let type_ = unsafe {
-            LLVMIntType(bits)
-        };
+        let type_ = unsafe { LLVMIntType(bits) };
 
         IntType::new(type_)
     }
@@ -195,9 +187,7 @@ impl IntType {
     /// ```
     // TODOC: Maybe better explain sign extension
     pub fn const_int(&self, value: u64, sign_extend: bool) -> IntValue {
-        let value = unsafe {
-            LLVMConstInt(self.as_type_ref(), value, sign_extend as i32)
-        };
+        let value = unsafe { LLVMConstInt(self.as_type_ref(), value, sign_extend as i32) };
 
         IntValue::new(value)
     }
@@ -231,7 +221,12 @@ impl IntType {
     /// ```
     pub fn const_int_from_string(&self, slice: &str, radix: u8) -> IntValue {
         let value = unsafe {
-            LLVMConstIntOfStringAndSize(self.as_type_ref(), slice.as_ptr() as *const i8, slice.len() as u32, radix)
+            LLVMConstIntOfStringAndSize(
+                self.as_type_ref(),
+                slice.as_ptr() as *const i8,
+                slice.len() as u32,
+                radix,
+            )
         };
 
         IntValue::new(value)
@@ -273,9 +268,7 @@ impl IntType {
     /// let i32_ptr_value = i32_type.const_all_ones();
     /// ```
     pub fn const_all_ones(&self) -> IntValue {
-        let value = unsafe {
-            LLVMConstAllOnes(self.as_type_ref())
-        };
+        let value = unsafe { LLVMConstAllOnes(self.as_type_ref()) };
 
         IntValue::new(value)
     }
@@ -315,21 +308,6 @@ impl IntType {
     /// ```
     pub fn const_zero(&self) -> IntValue {
         IntValue::new(self.int_type.const_zero())
-    }
-
-    /// Creates a `FunctionType` with this `IntType` for its return type.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use inkwell::context::Context;
-    ///
-    /// let context = Context::create();
-    /// let i8_type = context.i8_type();
-    /// let fn_type = i8_type.fn_type(&[], false);
-    /// ```
-    pub fn fn_type(&self, param_types: &[BasicTypeEnum], is_var_args: bool) -> FunctionType {
-        self.int_type.fn_type(param_types, is_var_args)
     }
 
     /// Creates an `ArrayType` with this `IntType` for its element type.
@@ -432,24 +410,6 @@ impl IntType {
         self.int_type.get_alignment()
     }
 
-    /// Creates a `PointerType` with this `IntType` for its element type.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use inkwell::context::Context;
-    /// use inkwell::AddressSpace;
-    ///
-    /// let context = Context::create();
-    /// let i8_type = context.i8_type();
-    /// let i8_ptr_type = i8_type.ptr_type(AddressSpace::Generic);
-    ///
-    /// assert_eq!(i8_ptr_type.get_element_type().into_int_type(), i8_type);
-    /// ```
-    pub fn ptr_type(&self, address_space: AddressSpace) -> PointerType {
-        self.int_type.ptr_type(address_space)
-    }
-
     /// Gets the bit width of an `IntType`.
     ///
     /// # Example
@@ -461,9 +421,7 @@ impl IntType {
     /// assert_eq!(bool_type.get_bit_width(), 1);
     /// ```
     pub fn get_bit_width(&self) -> u32 {
-        unsafe {
-            LLVMGetIntTypeWidth(self.as_type_ref())
-        }
+        unsafe { LLVMGetIntTypeWidth(self.as_type_ref()) }
     }
 
     /// Prints the definition of an `IntType` to a `LLVMString`.
@@ -497,9 +455,8 @@ impl IntType {
 
     /// Creates a `GenericValue` for use with `ExecutionEngine`s.
     pub fn create_generic_value(&self, value: u64, is_signed: bool) -> GenericValue {
-        let value = unsafe {
-            LLVMCreateGenericValueOfInt(self.as_type_ref(), value, is_signed as i32)
-        };
+        let value =
+            unsafe { LLVMCreateGenericValueOfInt(self.as_type_ref(), value, is_signed as i32) };
 
         GenericValue::new(value)
     }
@@ -519,12 +476,9 @@ impl IntType {
     /// assert!(i8_array.is_const());
     /// ```
     pub fn const_array(&self, values: &[IntValue]) -> ArrayValue {
-        let mut values: Vec<LLVMValueRef> = values.iter()
-                                                  .map(|val| val.as_value_ref())
-                                                  .collect();
-        let value = unsafe {
-            LLVMConstArray(self.as_type_ref(), values.as_mut_ptr(), values.len() as u32)
-        };
+        let mut values: Vec<LLVMValueRef> = values.iter().map(|val| val.as_value_ref()).collect();
+        let value =
+            unsafe { LLVMConstArray(self.as_type_ref(), values.as_mut_ptr(), values.len() as u32) };
 
         ArrayValue::new(value)
     }
@@ -533,5 +487,40 @@ impl IntType {
 impl AsTypeRef for IntType {
     fn as_type_ref(&self) -> LLVMTypeRef {
         self.int_type.type_
+    }
+}
+
+impl ConvertType for IntType {
+    /// Creates a `PointerType` with this `IntType` for its element type.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use inkwell::context::Context;
+    /// use inkwell::AddressSpace;
+    ///
+    /// let context = Context::create();
+    /// let i8_type = context.i8_type();
+    /// let i8_ptr_type = i8_type.ptr_type(AddressSpace::Generic);
+    ///
+    /// assert_eq!(i8_ptr_type.get_element_type().into_int_type(), i8_type);
+    /// ```
+    fn ptr_type(&self, address_space: AddressSpace) -> PointerType {
+        self.int_type.ptr_type(address_space)
+    }
+
+    /// Creates a `FunctionType` with this `IntType` for its return type.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use inkwell::context::Context;
+    ///
+    /// let context = Context::create();
+    /// let i8_type = context.i8_type();
+    /// let fn_type = i8_type.fn_type(&[], false);
+    /// ```
+    fn fn_type(&self, param_types: &[BasicTypeEnum], is_var_args: bool) -> FunctionType {
+        self.int_type.fn_type(param_types, is_var_args)
     }
 }

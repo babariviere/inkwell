@@ -1,10 +1,16 @@
 use llvm_sys::prelude::LLVMTypeRef;
+use AddressSpace;
 
 use std::fmt::Debug;
 
-use types::{IntType, FunctionType, FloatType, PointerType, StructType, ArrayType, VectorType, VoidType, Type};
 use types::enums::{AnyTypeEnum, BasicTypeEnum};
-use values::{IntMathValue, FloatMathValue, PointerMathValue, IntValue, FloatValue, PointerValue, VectorValue};
+use types::{
+    ArrayType, FloatType, FunctionType, IntType, PointerType, StructType, Type, VectorType,
+    VoidType,
+};
+use values::{
+    FloatMathValue, FloatValue, IntMathValue, IntValue, PointerMathValue, PointerValue, VectorValue,
+};
 
 // This is an ugly privacy hack so that Type can stay private to this module
 // and so that super traits using this trait will be not be implementable
@@ -67,6 +73,12 @@ pub trait PointerMathType: BasicType {
     type ValueType: PointerMathValue;
     /// The type for pointer to int or pointer vector to int conversions.
     type PtrConvType: IntMathType;
+}
+
+/// Represents a convertible type
+pub trait ConvertType: AnyType {
+    fn fn_type(&self, param_types: &[BasicTypeEnum], is_var_args: bool) -> FunctionType;
+    fn ptr_type(&self, address_space: AddressSpace) -> PointerType;
 }
 
 trait_type_set! {AnyType: AnyTypeEnum, BasicTypeEnum, IntType, FunctionType, FloatType, PointerType, StructType, ArrayType, VoidType, VectorType}

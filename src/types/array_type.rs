@@ -1,12 +1,12 @@
 use llvm_sys::core::{LLVMConstArray, LLVMGetArrayLength};
 use llvm_sys::prelude::{LLVMTypeRef, LLVMValueRef};
 
-use AddressSpace;
 use context::ContextRef;
 use support::LLVMString;
-use types::traits::AsTypeRef;
-use types::{Type, BasicTypeEnum, PointerType, FunctionType};
-use values::{AsValueRef, ArrayValue, IntValue};
+use types::traits::{AsTypeRef, ConvertType};
+use types::{BasicTypeEnum, FunctionType, PointerType, Type};
+use values::{ArrayValue, AsValueRef, IntValue};
+use AddressSpace;
 
 /// An `ArrayType` is the type of contiguous constants or variables.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -56,7 +56,7 @@ impl ArrayType {
     /// ```
     pub fn size_of(&self) -> Option<IntValue> {
         if self.is_sized() {
-            return Some(self.array_type.size_of())
+            return Some(self.array_type.size_of());
         }
 
         None
@@ -78,25 +78,6 @@ impl ArrayType {
         self.array_type.get_alignment()
     }
 
-    /// Creates a `PointerType` with this `ArrayType` for its element type.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use inkwell::context::Context;
-    /// use inkwell::AddressSpace;
-    ///
-    /// let context = Context::create();
-    /// let i8_type = context.i8_type();
-    /// let i8_array_type = i8_type.array_type(3);
-    /// let i8_array_ptr_type = i8_array_type.ptr_type(AddressSpace::Generic);
-    ///
-    /// assert_eq!(i8_array_ptr_type.get_element_type().into_array_type(), i8_array_type);
-    /// ```
-    pub fn ptr_type(&self, address_space: AddressSpace) -> PointerType {
-        self.array_type.ptr_type(address_space)
-    }
-
     /// Gets a reference to the `Context` this `ArrayType` was created in.
     ///
     /// # Example
@@ -112,22 +93,6 @@ impl ArrayType {
     /// ```
     pub fn get_context(&self) -> ContextRef {
         self.array_type.get_context()
-    }
-
-    /// Creates a `FunctionType` with this `ArrayType` for its return type.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use inkwell::context::Context;
-    ///
-    /// let context = Context::create();
-    /// let i8_type = context.i8_type();
-    /// let i8_array_type = i8_type.array_type(3);
-    /// let fn_type = i8_array_type.fn_type(&[], false);
-    /// ```
-    pub fn fn_type(&self, param_types: &[BasicTypeEnum], is_var_args: bool) -> FunctionType {
-        self.array_type.fn_type(param_types, is_var_args)
     }
 
     /// Creates an `ArrayType` with this `ArrayType` for its element type.
@@ -164,12 +129,9 @@ impl ArrayType {
     /// assert!(f32_array_array.is_const());
     /// ```
     pub fn const_array(&self, values: &[ArrayValue]) -> ArrayValue {
-        let mut values: Vec<LLVMValueRef> = values.iter()
-                                                  .map(|val| val.as_value_ref())
-                                                  .collect();
-        let value = unsafe {
-            LLVMConstArray(self.as_type_ref(), values.as_mut_ptr(), values.len() as u32)
-        };
+        let mut values: Vec<LLVMValueRef> = values.iter().map(|val| val.as_value_ref()).collect();
+        let value =
+            unsafe { LLVMConstArray(self.as_type_ref(), values.as_mut_ptr(), values.len() as u32) };
 
         ArrayValue::new(value)
     }
@@ -232,9 +194,7 @@ impl ArrayType {
     /// assert_eq!(i8_array_type.len(), 3);
     /// ```
     pub fn len(&self) -> u32 {
-        unsafe {
-            LLVMGetArrayLength(self.as_type_ref())
-        }
+        unsafe { LLVMGetArrayLength(self.as_type_ref()) }
     }
 
     /// Prints the definition of a `ArrayType` to a `LLVMString`.
@@ -283,11 +243,47 @@ impl ArrayType {
     pub fn get_element_type(&self) -> BasicTypeEnum {
         self.array_type.get_element_type().to_basic_type_enum()
     }
-
 }
 
 impl AsTypeRef for ArrayType {
     fn as_type_ref(&self) -> LLVMTypeRef {
         self.array_type.type_
+    }
+}
+
+impl ConvertType for ArrayType {
+    /// Creates a `PointerType` with this `ArrayType` for its element type.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use inkwell::context::Context;
+    /// use inkwell::AddressSpace;
+    ///
+    /// let context = Context::create();
+    /// let i8_type = context.i8_type();
+    /// let i8_array_type = i8_type.array_type(3);
+    /// let i8_array_ptr_type = i8_array_type.ptr_type(AddressSpace::Generic);
+    ///
+    /// assert_eq!(i8_array_ptr_type.get_element_type().into_array_type(), i8_array_type);
+    /// ```
+    fn ptr_type(&self, address_space: AddressSpace) -> PointerType {
+        self.array_type.ptr_type(address_space)
+    }
+
+    /// Creates a `FunctionType` with this `ArrayType` for its return type.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use inkwell::context::Context;
+    ///
+    /// let context = Context::create();
+    /// let i8_type = context.i8_type();
+    /// let i8_array_type = i8_type.array_type(3);
+    /// let fn_type = i8_array_type.fn_type(&[], false);
+    /// ```
+    fn fn_type(&self, param_types: &[BasicTypeEnum], is_var_args: bool) -> FunctionType {
+        self.array_type.fn_type(param_types, is_var_args)
     }
 }

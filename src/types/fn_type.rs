@@ -1,14 +1,14 @@
-use llvm_sys::core::{LLVMGetParamTypes, LLVMIsFunctionVarArg, LLVMCountParamTypes};
+use llvm_sys::core::{LLVMCountParamTypes, LLVMGetParamTypes, LLVMIsFunctionVarArg};
 use llvm_sys::prelude::LLVMTypeRef;
 
 use std::fmt;
 use std::mem::forget;
 
-use AddressSpace;
 use context::ContextRef;
 use support::LLVMString;
-use types::traits::AsTypeRef;
-use types::{PointerType, Type, BasicTypeEnum};
+use types::traits::{AsTypeRef, ConvertType};
+use types::{BasicTypeEnum, PointerType, Type};
+use AddressSpace;
 
 // REVIEW: Add a get_return_type() -> Option<BasicTypeEnum>?
 /// A `FunctionType` is the type of a function variable.
@@ -22,27 +22,8 @@ impl FunctionType {
         assert!(!fn_type.is_null());
 
         FunctionType {
-            fn_type: Type::new(fn_type)
+            fn_type: Type::new(fn_type),
         }
-    }
-
-    /// Creates a `PointerType` with this `FunctionType` for its element type.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use inkwell::context::Context;
-    /// use inkwell::AddressSpace;
-    ///
-    /// let context = Context::create();
-    /// let f32_type = context.f32_type();
-    /// let fn_type = f32_type.fn_type(&[], false);
-    /// let fn_ptr_type = fn_type.ptr_type(AddressSpace::Global);
-    ///
-    /// assert_eq!(fn_ptr_type.get_element_type().into_function_type(), fn_type);
-    /// ```
-    pub fn ptr_type(&self, address_space: AddressSpace) -> PointerType {
-        self.fn_type.ptr_type(address_space)
     }
 
     /// Determines whether or not a `FunctionType` is a variadic function.
@@ -59,9 +40,7 @@ impl FunctionType {
     /// assert!(fn_type.is_var_arg());
     /// ```
     pub fn is_var_arg(&self) -> bool {
-        unsafe {
-            LLVMIsFunctionVarArg(self.as_type_ref()) != 0
-        }
+        unsafe { LLVMIsFunctionVarArg(self.as_type_ref()) != 0 }
     }
 
     /// Gets param types this `FunctionType` has.
@@ -109,9 +88,7 @@ impl FunctionType {
     /// assert_eq!(fn_type.count_param_types(), 1);
     /// ```
     pub fn count_param_types(&self) -> u32 {
-        unsafe {
-            LLVMCountParamTypes(self.as_type_ref())
-        }
+        unsafe { LLVMCountParamTypes(self.as_type_ref()) }
     }
 
     // REVIEW: Always false -> const fn?
@@ -190,5 +167,30 @@ impl fmt::Debug for FunctionType {
 impl AsTypeRef for FunctionType {
     fn as_type_ref(&self) -> LLVMTypeRef {
         self.fn_type.type_
+    }
+}
+
+impl ConvertType for FunctionType {
+    /// Creates a `PointerType` with this `FunctionType` for its element type.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use inkwell::context::Context;
+    /// use inkwell::AddressSpace;
+    ///
+    /// let context = Context::create();
+    /// let f32_type = context.f32_type();
+    /// let fn_type = f32_type.fn_type(&[], false);
+    /// let fn_ptr_type = fn_type.ptr_type(AddressSpace::Global);
+    ///
+    /// assert_eq!(fn_ptr_type.get_element_type().into_function_type(), fn_type);
+    /// ```
+    fn ptr_type(&self, address_space: AddressSpace) -> PointerType {
+        self.fn_type.ptr_type(address_space)
+    }
+
+    fn fn_type(&self, _: &[BasicTypeEnum], _: bool) -> FunctionType {
+        panic!("cannot create a function type from function type")
     }
 }

@@ -1,11 +1,11 @@
 use llvm_sys::core::LLVMVoidType;
 use llvm_sys::prelude::LLVMTypeRef;
 
-use AddressSpace;
 use context::ContextRef;
 use support::LLVMString;
-use types::traits::AsTypeRef;
-use types::{Type, BasicTypeEnum, FunctionType, PointerType};
+use types::traits::{AsTypeRef, ConvertType};
+use types::{BasicTypeEnum, FunctionType, PointerType, Type};
+use AddressSpace;
 
 /// A `VoidType` is a special type with no possible direct instances. It's particularly
 /// useful as a pointer element type or a function return type.
@@ -57,40 +57,6 @@ impl VoidType {
         self.void_type.get_context()
     }
 
-    /// Creates a `PointerType` with this `VoidType` for its element type.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use inkwell::context::Context;
-    /// use inkwell::AddressSpace;
-    ///
-    /// let context = Context::create();
-    /// let void_type = context.void_type();
-    /// let void_ptr_type = void_type.ptr_type(AddressSpace::Generic);
-    ///
-    /// assert_eq!(void_ptr_type.get_element_type().into_void_type(), void_type);
-    /// ```
-    pub fn ptr_type(&self, address_space: AddressSpace) -> PointerType {
-        self.void_type.ptr_type(address_space)
-    }
-
-    /// Creates a `FunctionType` with this `VoidType` for its return type.
-    /// This means the function does not return.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use inkwell::context::Context;
-    ///
-    /// let context = Context::create();
-    /// let void_type = context.void_type();
-    /// let fn_type = void_type.fn_type(&[], false);
-    /// ```
-    pub fn fn_type(&self, param_types: &[BasicTypeEnum], is_var_args: bool) -> FunctionType {
-        self.void_type.fn_type(param_types, is_var_args)
-    }
-
     /// Gets the `VoidType`. It will be assigned the global context.
     ///
     /// # Example
@@ -104,9 +70,7 @@ impl VoidType {
     /// assert_eq!(void_type.get_context(), Context::get_global());
     /// ```
     pub fn void_type() -> Self {
-        let void_type = unsafe {
-            LLVMVoidType()
-        };
+        let void_type = unsafe { LLVMVoidType() };
 
         VoidType::new(void_type)
     }
@@ -127,5 +91,41 @@ impl VoidType {
 impl AsTypeRef for VoidType {
     fn as_type_ref(&self) -> LLVMTypeRef {
         self.void_type.type_
+    }
+}
+
+impl ConvertType for VoidType {
+    /// Creates a `PointerType` with this `VoidType` for its element type.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use inkwell::context::Context;
+    /// use inkwell::AddressSpace;
+    ///
+    /// let context = Context::create();
+    /// let void_type = context.void_type();
+    /// let void_ptr_type = void_type.ptr_type(AddressSpace::Generic);
+    ///
+    /// assert_eq!(void_ptr_type.get_element_type().into_void_type(), void_type);
+    /// ```
+    fn ptr_type(&self, address_space: AddressSpace) -> PointerType {
+        self.void_type.ptr_type(address_space)
+    }
+
+    /// Creates a `FunctionType` with this `VoidType` for its return type.
+    /// This means the function does not return.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use inkwell::context::Context;
+    ///
+    /// let context = Context::create();
+    /// let void_type = context.void_type();
+    /// let fn_type = void_type.fn_type(&[], false);
+    /// ```
+    fn fn_type(&self, param_types: &[BasicTypeEnum], is_var_args: bool) -> FunctionType {
+        self.void_type.fn_type(param_types, is_var_args)
     }
 }

@@ -1,11 +1,14 @@
-use llvm_sys::core::{LLVMConstVector, LLVMGetVectorSize, LLVMConstArray};
+use llvm_sys::core::{LLVMConstArray, LLVMConstVector, LLVMGetVectorSize};
 use llvm_sys::prelude::{LLVMTypeRef, LLVMValueRef};
 
-use AddressSpace;
 use context::ContextRef;
 use support::LLVMString;
-use types::{ArrayType, BasicTypeEnum, Type, traits::AsTypeRef, FunctionType, PointerType};
-use values::{AsValueRef, ArrayValue, BasicValue, VectorValue, IntValue};
+use types::{
+    traits::AsTypeRef, traits::ConvertType, ArrayType, BasicTypeEnum, FunctionType, PointerType,
+    Type,
+};
+use values::{ArrayValue, AsValueRef, BasicValue, IntValue, VectorValue};
+use AddressSpace;
 
 /// A `VectorType` is the type of a multiple value SIMD constant or variable.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -57,7 +60,7 @@ impl VectorType {
     /// ```
     pub fn size_of(&self) -> Option<IntValue> {
         if self.is_sized() {
-            return Some(self.vec_type.size_of())
+            return Some(self.vec_type.size_of());
         }
 
         None
@@ -94,9 +97,7 @@ impl VectorType {
     /// assert_eq!(f32_vector_type.get_element_type().into_float_type(), f32_type);
     /// ```
     pub fn get_size(&self) -> u32 {
-        unsafe {
-            LLVMGetVectorSize(self.as_type_ref())
-        }
+        unsafe { LLVMGetVectorSize(self.as_type_ref()) }
     }
 
     // REVIEW:
@@ -123,12 +124,8 @@ impl VectorType {
     /// assert!(f32_vec_val.is_constant_vector());
     /// ```
     pub fn const_vector<V: BasicValue>(values: &[V]) -> VectorValue {
-        let mut values: Vec<LLVMValueRef> = values.iter()
-                                                  .map(|val| val.as_value_ref())
-                                                  .collect();
-        let vec_value = unsafe {
-            LLVMConstVector(values.as_mut_ptr(), values.len() as u32)
-        };
+        let mut values: Vec<LLVMValueRef> = values.iter().map(|val| val.as_value_ref()).collect();
+        let vec_value = unsafe { LLVMConstVector(values.as_mut_ptr(), values.len() as u32) };
 
         VectorValue::new(vec_value)
     }
@@ -223,7 +220,6 @@ impl VectorType {
     /// ```
     pub fn get_element_type(&self) -> BasicTypeEnum {
         self.vec_type.get_element_type().to_basic_type_enum()
-
     }
 
     /// Creates a `VectorType` with this `VectorType` for its element type.
@@ -243,41 +239,6 @@ impl VectorType {
     /// ```
     pub fn vec_type(&self, size: u32) -> VectorType {
         self.vec_type.vec_type(size)
-    }
-
-    /// Creates a `PointerType` with this `VectorType` for its element type.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use inkwell::context::Context;
-    /// use inkwell::AddressSpace;
-    ///
-    /// let context = Context::create();
-    /// let f32_type = context.f32_type();
-    /// let f32_vec_type = f32_type.vec_type(3);
-    /// let f32_vec_ptr_type = f32_vec_type.ptr_type(AddressSpace::Generic);
-    ///
-    /// assert_eq!(f32_vec_ptr_type.get_element_type().into_vector_type(), f32_vec_type);
-    /// ```
-    pub fn ptr_type(&self, address_space: AddressSpace) -> PointerType {
-        self.vec_type.ptr_type(address_space)
-    }
-
-    /// Creates a `FunctionType` with this `VectorType` for its return type.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use inkwell::context::Context;
-    ///
-    /// let context = Context::create();
-    /// let f32_type = context.f32_type();
-    /// let f32_vec_type = f32_type.vec_type(3);
-    /// let fn_type = f32_vec_type.fn_type(&[], false);
-    /// ```
-    pub fn fn_type(&self, param_types: &[BasicTypeEnum], is_var_args: bool) -> FunctionType {
-        self.vec_type.fn_type(param_types, is_var_args)
     }
 
     /// Creates an `ArrayType` with this `VectorType` for its element type.
@@ -317,12 +278,9 @@ impl VectorType {
     /// assert!(f32_array.is_const());
     /// ```
     pub fn const_array(&self, values: &[VectorValue]) -> ArrayValue {
-        let mut values: Vec<LLVMValueRef> = values.iter()
-                                                  .map(|val| val.as_value_ref())
-                                                  .collect();
-        let value = unsafe {
-            LLVMConstArray(self.as_type_ref(), values.as_mut_ptr(), values.len() as u32)
-        };
+        let mut values: Vec<LLVMValueRef> = values.iter().map(|val| val.as_value_ref()).collect();
+        let value =
+            unsafe { LLVMConstArray(self.as_type_ref(), values.as_mut_ptr(), values.len() as u32) };
 
         ArrayValue::new(value)
     }
@@ -348,5 +306,42 @@ impl VectorType {
 impl AsTypeRef for VectorType {
     fn as_type_ref(&self) -> LLVMTypeRef {
         self.vec_type.type_
+    }
+}
+
+impl ConvertType for VectorType {
+    /// Creates a `PointerType` with this `VectorType` for its element type.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use inkwell::context::Context;
+    /// use inkwell::AddressSpace;
+    ///
+    /// let context = Context::create();
+    /// let f32_type = context.f32_type();
+    /// let f32_vec_type = f32_type.vec_type(3);
+    /// let f32_vec_ptr_type = f32_vec_type.ptr_type(AddressSpace::Generic);
+    ///
+    /// assert_eq!(f32_vec_ptr_type.get_element_type().into_vector_type(), f32_vec_type);
+    /// ```
+    fn ptr_type(&self, address_space: AddressSpace) -> PointerType {
+        self.vec_type.ptr_type(address_space)
+    }
+
+    /// Creates a `FunctionType` with this `VectorType` for its return type.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use inkwell::context::Context;
+    ///
+    /// let context = Context::create();
+    /// let f32_type = context.f32_type();
+    /// let f32_vec_type = f32_type.vec_type(3);
+    /// let fn_type = f32_vec_type.fn_type(&[], false);
+    /// ```
+    fn fn_type(&self, param_types: &[BasicTypeEnum], is_var_args: bool) -> FunctionType {
+        self.vec_type.fn_type(param_types, is_var_args)
     }
 }
