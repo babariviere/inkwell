@@ -28,8 +28,9 @@ pub use types::int_type::IntType;
 pub use types::ptr_type::PointerType;
 pub use types::struct_type::StructType;
 pub(crate) use types::traits::AsTypeRef;
-pub use types::traits::ConvertType;
-pub use types::traits::{AnyType, BasicType, FloatMathType, IntMathType, PointerMathType};
+pub use types::traits::{
+    AnyType, BasicType, ConvertType, FloatMathType, IntMathType, PointerMathType,
+};
 pub use types::vec_type::VectorType;
 pub use types::void_type::VoidType;
 

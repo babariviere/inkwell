@@ -190,6 +190,7 @@ impl ConvertType for FunctionType {
         self.fn_type.ptr_type(address_space)
     }
 
+    /// Panic because we cannot create function type from function type
     fn fn_type(&self, _: &[BasicTypeEnum], _: bool) -> FunctionType {
         panic!("cannot create a function type from function type")
     }

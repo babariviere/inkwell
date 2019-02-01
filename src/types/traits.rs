@@ -77,7 +77,9 @@ pub trait PointerMathType: BasicType {
 
 /// Represents a convertible type
 pub trait ConvertType: AnyType {
+    /// Convert type to function type
     fn fn_type(&self, param_types: &[BasicTypeEnum], is_var_args: bool) -> FunctionType;
+    /// Convert type to pointer type
     fn ptr_type(&self, address_space: AddressSpace) -> PointerType;
 }
 
