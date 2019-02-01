@@ -1,10 +1,17 @@
-use llvm_sys::prelude::LLVMValueRef;
 use llvm_sys::core::{LLVMConstExtractValue, LLVMConstInsertValue};
+use llvm_sys::prelude::LLVMValueRef;
 
+use std::ffi::CStr;
 use std::fmt::Debug;
 
-use values::{ArrayValue, AggregateValueEnum, CallSiteValue, GlobalValue, StructValue, BasicValueEnum, AnyValueEnum, IntValue, FloatValue, PointerValue, PhiValue, VectorValue, FunctionValue, InstructionValue};
-use types::{IntMathType, FloatMathType, PointerMathType, IntType, FloatType, PointerType, VectorType};
+use types::{
+    FloatMathType, FloatType, IntMathType, IntType, PointerMathType, PointerType, VectorType,
+};
+use values::{
+    AggregateValueEnum, AnyValueEnum, ArrayValue, BasicValueEnum, CallSiteValue, FloatValue,
+    FunctionValue, GlobalValue, InstructionValue, IntValue, PhiValue, PointerValue, StructValue,
+    VectorValue,
+};
 
 // This is an ugly privacy hack so that Type can stay private to this module
 // and so that super traits using this trait will be not be implementable
@@ -49,7 +56,11 @@ pub trait AggregateValue: BasicValue {
     // REVIEW: Should this be AggregatePointerValue?
     fn const_extract_value(&self, indexes: &mut [u32]) -> BasicValueEnum {
         let value = unsafe {
-            LLVMConstExtractValue(self.as_value_ref(), indexes.as_mut_ptr(), indexes.len() as u32)
+            LLVMConstExtractValue(
+                self.as_value_ref(),
+                indexes.as_mut_ptr(),
+                indexes.len() as u32,
+            )
         };
 
         BasicValueEnum::new(value)
@@ -58,7 +69,12 @@ pub trait AggregateValue: BasicValue {
     // SubTypes: value should really be T in self: VectorValue<T> I think
     fn const_insert_value<BV: BasicValue>(&self, value: BV, indexes: &mut [u32]) -> BasicValueEnum {
         let value = unsafe {
-            LLVMConstInsertValue(self.as_value_ref(), value.as_value_ref(), indexes.as_mut_ptr(), indexes.len() as u32)
+            LLVMConstInsertValue(
+                self.as_value_ref(),
+                value.as_value_ref(),
+                indexes.as_mut_ptr(),
+                indexes.len() as u32,
+            )
         };
 
         BasicValueEnum::new(value)
@@ -97,6 +113,11 @@ pub trait AnyValue: AsValueRef + Debug {
     fn as_any_value_enum(&self) -> AnyValueEnum {
         AnyValueEnum::new(self.as_value_ref())
     }
+}
+
+pub trait NamedValue: AnyValue {
+    fn get_name(&self) -> &CStr;
+    fn set_name(&self, name: &str);
 }
 
 trait_value_set! {AggregateValue: ArrayValue, AggregateValueEnum, StructValue}

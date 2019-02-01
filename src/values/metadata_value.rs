@@ -1,16 +1,19 @@
-use llvm_sys::core::{LLVMMDNode, LLVMMDString, LLVMIsAMDNode, LLVMIsAMDString, LLVMGetMDString, LLVMGetMDNodeNumOperands, LLVMGetMDNodeOperands, LLVMGetMDKindID};
+use llvm_sys::core::{
+    LLVMGetMDKindID, LLVMGetMDNodeNumOperands, LLVMGetMDNodeOperands, LLVMGetMDString,
+    LLVMIsAMDNode, LLVMIsAMDString, LLVMMDNode, LLVMMDString,
+};
 use llvm_sys::prelude::LLVMValueRef;
 
 #[llvm_versions(7.0 => latest)]
-use llvm_sys::prelude::LLVMMetadataRef;
-#[llvm_versions(7.0 => latest)]
 use llvm_sys::core::LLVMValueAsMetadata;
+#[llvm_versions(7.0 => latest)]
+use llvm_sys::prelude::LLVMMetadataRef;
 
 use support::LLVMString;
 use values::traits::AsValueRef;
-use values::{BasicValue, BasicMetadataValueEnum, Value};
+use values::{BasicMetadataValueEnum, BasicValue, Value};
 
-use std::ffi::{CString, CStr};
+use std::ffi::{CStr, CString};
 use std::fmt;
 use std::mem::forget;
 use std::slice::from_raw_parts;
@@ -53,32 +56,24 @@ impl MetadataValue {
 
     #[llvm_versions(7.0 => latest)]
     pub(crate) fn as_metadata_ref(&self) -> LLVMMetadataRef {
-        unsafe {
-            LLVMValueAsMetadata(self.as_value_ref())
-        }
+        unsafe { LLVMValueAsMetadata(self.as_value_ref()) }
     }
 
     // SubTypes: This can probably go away with subtypes
     pub fn is_node(&self) -> bool {
-        unsafe {
-            LLVMIsAMDNode(self.as_value_ref()) == self.as_value_ref()
-        }
+        unsafe { LLVMIsAMDNode(self.as_value_ref()) == self.as_value_ref() }
     }
 
     // SubTypes: This can probably go away with subtypes
     pub fn is_string(&self) -> bool {
-        unsafe {
-            LLVMIsAMDString(self.as_value_ref()) == self.as_value_ref()
-        }
+        unsafe { LLVMIsAMDString(self.as_value_ref()) == self.as_value_ref() }
     }
 
     pub fn create_node(values: &[&BasicValue]) -> Self {
-        let mut tuple_values: Vec<LLVMValueRef> = values.iter()
-                                                        .map(|val| val.as_value_ref())
-                                                        .collect();
-        let metadata_value = unsafe {
-            LLVMMDNode(tuple_values.as_mut_ptr(), tuple_values.len() as u32)
-        };
+        let mut tuple_values: Vec<LLVMValueRef> =
+            values.iter().map(|val| val.as_value_ref()).collect();
+        let metadata_value =
+            unsafe { LLVMMDNode(tuple_values.as_mut_ptr(), tuple_values.len() as u32) };
 
         MetadataValue::new(metadata_value)
     }
@@ -86,9 +81,7 @@ impl MetadataValue {
     pub fn create_string(string: &str) -> Self {
         let c_string = CString::new(string).expect("Conversion to CString failed unexpectedly");
 
-        let metadata_value = unsafe {
-            LLVMMDString(c_string.as_ptr(), string.len() as u32)
-        };
+        let metadata_value = unsafe { LLVMMDString(c_string.as_ptr(), string.len() as u32) };
 
         MetadataValue::new(metadata_value)
     }
@@ -99,9 +92,7 @@ impl MetadataValue {
         }
 
         let mut len = 0;
-        let c_str = unsafe {
-            CStr::from_ptr(LLVMGetMDString(self.as_value_ref(), &mut len))
-        };
+        let c_str = unsafe { CStr::from_ptr(LLVMGetMDString(self.as_value_ref(), &mut len)) };
 
         Some(c_str)
     }
@@ -112,9 +103,7 @@ impl MetadataValue {
             return 0;
         }
 
-        unsafe {
-            LLVMGetMDNodeNumOperands(self.as_value_ref())
-        }
+        unsafe { LLVMGetMDNodeNumOperands(self.as_value_ref()) }
     }
 
     // SubTypes: Node only one day
@@ -136,7 +125,10 @@ impl MetadataValue {
             from_raw_parts(ptr, count as usize)
         };
 
-        slice.iter().map(|val| BasicMetadataValueEnum::new(*val)).collect()
+        slice
+            .iter()
+            .map(|val| BasicMetadataValueEnum::new(*val))
+            .collect()
     }
 
     // What is this even useful for
@@ -156,7 +148,8 @@ impl MetadataValue {
     }
 
     pub fn replace_all_uses_with(&self, other: &MetadataValue) {
-        self.metadata_value.replace_all_uses_with(other.as_value_ref())
+        self.metadata_value
+            .replace_all_uses_with(other.as_value_ref())
     }
 }
 

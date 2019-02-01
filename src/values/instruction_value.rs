@@ -1,11 +1,16 @@
-use llvm_sys::core::{LLVMGetInstructionOpcode, LLVMIsTailCall, LLVMGetPreviousInstruction, LLVMGetNextInstruction, LLVMGetInstructionParent, LLVMInstructionEraseFromParent, LLVMInstructionClone, LLVMSetVolatile, LLVMGetVolatile};
 #[llvm_versions(3.9 => latest)]
 use llvm_sys::core::LLVMInstructionRemoveFromParent;
-use llvm_sys::LLVMOpcode;
+use llvm_sys::core::{
+    LLVMGetInstructionOpcode, LLVMGetInstructionParent, LLVMGetNextInstruction,
+    LLVMGetPreviousInstruction, LLVMGetVolatile, LLVMInstructionClone,
+    LLVMInstructionEraseFromParent, LLVMIsTailCall, LLVMSetVolatile,
+};
 use llvm_sys::prelude::LLVMValueRef;
+use llvm_sys::LLVMOpcode;
 
 use basic_block::BasicBlock;
 use values::traits::AsValueRef;
+use values::traits::NamedValue;
 use values::Value;
 
 // REVIEW: Split up into structs for SubTypes on InstructionValues?
@@ -254,17 +259,13 @@ impl InstructionValue {
     }
 
     pub fn get_opcode(&self) -> InstructionOpcode {
-        let opcode = unsafe {
-            LLVMGetInstructionOpcode(self.as_value_ref())
-        };
+        let opcode = unsafe { LLVMGetInstructionOpcode(self.as_value_ref()) };
 
         InstructionOpcode::new(opcode)
     }
 
     pub fn get_previous_instruction(&self) -> Option<Self> {
-        let value = unsafe {
-            LLVMGetPreviousInstruction(self.as_value_ref())
-        };
+        let value = unsafe { LLVMGetPreviousInstruction(self.as_value_ref()) };
 
         if value.is_null() {
             return None;
@@ -274,9 +275,7 @@ impl InstructionValue {
     }
 
     pub fn get_next_instruction(&self) -> Option<Self> {
-        let value = unsafe {
-            LLVMGetNextInstruction(self.as_value_ref())
-        };
+        let value = unsafe { LLVMGetNextInstruction(self.as_value_ref()) };
 
         if value.is_null() {
             return None;
@@ -287,17 +286,13 @@ impl InstructionValue {
 
     // REVIEW: Potentially unsafe if parent BB or grandparent fn were removed?
     pub fn erase_from_basic_block(&self) {
-        unsafe {
-            LLVMInstructionEraseFromParent(self.as_value_ref())
-        }
+        unsafe { LLVMInstructionEraseFromParent(self.as_value_ref()) }
     }
 
     // REVIEW: Potentially unsafe if parent BB or grandparent fn were removed?
     #[llvm_versions(3.9 => latest)]
     pub fn remove_from_basic_block(&self) {
-        unsafe {
-            LLVMInstructionRemoveFromParent(self.as_value_ref())
-        }
+        unsafe { LLVMInstructionRemoveFromParent(self.as_value_ref()) }
     }
 
     // REVIEW: Potentially unsafe is parent BB or grandparent fn was deleted
@@ -305,9 +300,7 @@ impl InstructionValue {
     // but I doubt LLVM returns null if the parent BB (or grandparent FN)
     // was deleted... Invalid memory is more likely
     pub fn get_parent(&self) -> Option<BasicBlock> {
-        let value = unsafe {
-            LLVMGetInstructionParent(self.as_value_ref())
-        };
+        let value = unsafe { LLVMGetInstructionParent(self.as_value_ref()) };
 
         BasicBlock::new(value)
     }
@@ -315,29 +308,24 @@ impl InstructionValue {
     // REVIEW: See if necessary to check opcode == Call first.
     // Does it always return false otherwise?
     pub fn is_tail_call(&self) -> bool {
-        unsafe {
-            LLVMIsTailCall(self.as_value_ref()) == 1
-        }
+        unsafe { LLVMIsTailCall(self.as_value_ref()) == 1 }
     }
 
     pub fn replace_all_uses_with(&self, other: &InstructionValue) {
-        self.instruction_value.replace_all_uses_with(other.as_value_ref())
+        self.instruction_value
+            .replace_all_uses_with(other.as_value_ref())
     }
 
     // SubTypes: Only apply to memory access instructions
     /// Returns whether or not a memory access instruction is volatile.
     pub fn get_volatile(&self) -> bool {
-        unsafe {
-            LLVMGetVolatile(self.as_value_ref()) == 1
-        }
+        unsafe { LLVMGetVolatile(self.as_value_ref()) == 1 }
     }
 
     // SubTypes: Only apply to memory access instructions
     /// Sets whether or not a memory access instruction is volatile.
     pub fn set_volatile(&self, volatile: bool) {
-        unsafe {
-            LLVMSetVolatile(self.as_value_ref(), volatile as i32)
-        }
+        unsafe { LLVMSetVolatile(self.as_value_ref(), volatile as i32) }
     }
 }
 
@@ -345,9 +333,7 @@ impl Clone for InstructionValue {
     /// Creates a clone of this `InstructionValue`, and returns it.
     /// The clone will have no parent, and no name.
     fn clone(&self) -> Self {
-        let value = unsafe {
-            LLVMInstructionClone(self.as_value_ref())
-        };
+        let value = unsafe { LLVMInstructionClone(self.as_value_ref()) };
 
         InstructionValue::new(value)
     }
@@ -356,5 +342,14 @@ impl Clone for InstructionValue {
 impl AsValueRef for InstructionValue {
     fn as_value_ref(&self) -> LLVMValueRef {
         self.instruction_value.value
+    }
+}
+
+impl NamedValue for InstructionValue {
+    fn get_name(&self) -> &std::ffi::CStr {
+        panic!("cannot get name of instruction value")
+    }
+    fn set_name(&self, _: &str) {
+        panic!("cannot set name of instruction value")
     }
 }
